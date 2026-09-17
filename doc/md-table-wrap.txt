@@ -1,0 +1,207 @@
+*md-table-wrap.txt*  Wrapped, window-fitting markdown tables rendered in place
+                        For Neovim >= 0.11.0    Last change: 2026 September 17
+
+==============================================================================
+Table of Contents                            *md-table-wrap-table-of-contents*
+
+1. md-table-wrap.nvim                       |md-table-wrap-md-table-wrap.nvim|
+  - Features                       |md-table-wrap-md-table-wrap.nvim-features|
+  - Requirements               |md-table-wrap-md-table-wrap.nvim-requirements|
+  - Installation               |md-table-wrap-md-table-wrap.nvim-installation|
+  - Configuration             |md-table-wrap-md-table-wrap.nvim-configuration|
+  - Commands and API       |md-table-wrap-md-table-wrap.nvim-commands-and-api|
+  - How it works               |md-table-wrap-md-table-wrap.nvim-how-it-works|
+  - Limitations                 |md-table-wrap-md-table-wrap.nvim-limitations|
+  - Development                 |md-table-wrap-md-table-wrap.nvim-development|
+  - License                         |md-table-wrap-md-table-wrap.nvim-license|
+2. Links                                                 |md-table-wrap-links|
+
+==============================================================================
+1. md-table-wrap.nvim                       *md-table-wrap-md-table-wrap.nvim*
+
+Markdown tables in Neovim break as soon as they are wider than the window: with
+`wrap` on, a row folds at column zero and the columns stop lining up; with
+`wrap` off, the right-hand columns are simply off screen.
+
+This plugin draws the table in place instead. The source lines are hidden and
+replaced by a table that fits the window, with cell contents wrapped and the
+columns still aligned. The buffer text is never modified.
+
+
+
+>
+    ┌───────────────┬──────────────────────────┐
+    │ Option        │ Description              │
+    ├───────────────┼──────────────────────────┤
+    │ min_col_width │ Lower bound while        │
+    │               │ columns are squeezed     │
+    ├───────────────┼──────────────────────────┤
+    │ debounce      │ Milliseconds to wait     │
+    │               │ before redrawing         │
+    ├───────────────┼──────────────────────────┤
+    │ filetypes     │ Filetypes the tables are │
+    │               │ rendered in              │
+    └───────────────┴──────────────────────────┘
+<
+
+
+FEATURES                           *md-table-wrap-md-table-wrap.nvim-features*
+
+- Cells wrap and the columns stay aligned, at any window width
+- Widths are measured in display cells, so CJK text and emoji keep the columns
+    aligned, and a line is never broken in the middle of an emoji
+- Inline code, bold, italic and strikethrough keep their highlighting; the markers
+    themselves are hidden
+- The table stays drawn while the cursor moves over it, with only the row under the cursor
+    shown as markdown source in place; insert mode brings back the source for editing
+- Columns are squeezed from the widest one until the table fits the window, and every
+    window showing the buffer is laid out for its own width
+
+
+REQUIREMENTS                   *md-table-wrap-md-table-wrap.nvim-requirements*
+
+- Neovim >= 0.11 (the `conceal_lines` extmark option)
+- The bundled `markdown_inline` treesitter parser, for inline highlighting. Without it
+    the tables still render, with the markers left in the text.
+
+
+INSTALLATION                   *md-table-wrap-md-table-wrap.nvim-installation*
+
+With lazy.nvim <https://github.com/folke/lazy.nvim>:
+
+>lua
+    {
+      "walkersumida/md-table-wrap.nvim",
+      ft = "markdown",
+      opts = {},
+    }
+<
+
+If you use render-markdown.nvim
+<https://github.com/MeanderingProgrammer/render-markdown.nvim>, turn its own
+table rendering off so the two do not draw over each other. Add the visual
+modes to its `render_modes` as well: outside those modes it sets
+`'conceallevel'` back to your default, and the tables fall back to source while
+you select.
+
+>lua
+    {
+      "MeanderingProgrammer/render-markdown.nvim",
+      opts = {
+        pipe_table = { enabled = false },
+        -- render-markdown.nvim turns conceal off outside these modes, which would show
+        -- the tables as source while selecting
+        render_modes = { "n", "c", "t", "v", "V", "\22" },
+      },
+    }
+<
+
+
+CONFIGURATION                 *md-table-wrap-md-table-wrap.nvim-configuration*
+
+`setup()` takes the options below. The defaults are shown.
+
+>lua
+    require("md-table-wrap").setup({
+      enabled = true,
+    
+      -- Filetypes the tables are rendered in.
+      filetypes = { "markdown" },
+    
+      -- The source of a table is hidden with conceal, so a window showing one of the
+      -- filetypes with 'conceallevel' at 0 gets this level instead. The level applies to
+      -- every conceal in the window, such as the markers and link destinations Neovim
+      -- hides in markdown. Set to false to leave the option alone.
+      conceallevel = 2,
+    
+      -- A column is never squeezed below this width while the table is being fitted to
+      -- the window.
+      min_col_width = 8,
+    
+      -- Milliseconds to wait after an event before redrawing.
+      debounce = 50,
+    
+      -- Milliseconds to keep re-measuring the window after a buffer opens. Other plugins
+      -- place their signs after the first draw, which changes the width left for the
+      -- table.
+      settle_time = 1000,
+    
+      -- Number of parsed cells kept in memory.
+      cache_size = 2000,
+    
+      -- Highlight groups applied to the drawn table. The inline keys are the treesitter
+      -- node names of the markdown_inline parser.
+      highlights = {
+        header = { "Title" },
+        code_span = { "@markup.raw.markdown_inline", "RenderMarkdownCodeInline" },
+        strong_emphasis = { "@markup.strong" },
+        emphasis = { "@markup.italic" },
+        strikethrough = { "@markup.strikethrough" },
+      },
+    })
+<
+
+
+COMMANDS AND API           *md-table-wrap-md-table-wrap.nvim-commands-and-api*
+
+  Command        Description
+  -------------- ---------------------------------------------
+  :MdTableWrap   Toggle the rendering for the current buffer
+>lua
+    require("md-table-wrap").toggle()  -- current buffer
+    require("md-table-wrap").enable()  -- every attached buffer
+    require("md-table-wrap").disable()
+<
+
+
+HOW IT WORKS                   *md-table-wrap-md-table-wrap.nvim-how-it-works*
+
+- The source lines of a table are hidden with conceal and a table that fits the
+    window is drawn in their place as virtual lines. The buffer text is never changed.
+- Conceal needs `'conceallevel'` above 0, so a window showing markdown with the level
+    at 0 is given the `conceallevel` option (`:setlocal`) when the buffer is shown. If
+    another plugin lowers it afterwards, the tables are left as source until it is
+    raised again.
+
+
+LIMITATIONS                     *md-table-wrap-md-table-wrap.nvim-limitations*
+
+- A table that starts on line one and runs to the end of the buffer has no neighbouring
+    line to attach the drawn table to, and is left as source
+- Scoping a namespace to a window is experimental (`nvim__ns_set`). Where it is missing,
+    only one window of a buffer is rendered at a time
+- Variation selectors are dropped from the drawn text: terminals and Neovim disagree
+    about the width of an emoji presentation, and one cell of disagreement breaks every
+    column to its right
+- Links keep their markup
+- A visual selection is highlighted on source lines only. The drawn rows are virtual
+    text and stay unhighlighted, while yanking or deleting still acts on the source
+    lines of the table
+
+
+DEVELOPMENT                     *md-table-wrap-md-table-wrap.nvim-development*
+
+>sh
+    make test              # run the suite
+    make test-file FILE=tests/text_spec.lua
+<
+
+`tests/screen_spec.lua` runs a second Neovim in a pty and reads its screen over
+RPC, which is the only way to check what a drawn table, and the source line
+under the cursor, really look like.
+
+
+LICENSE                             *md-table-wrap-md-table-wrap.nvim-license*
+
+MIT
+
+==============================================================================
+2. Links                                                 *md-table-wrap-links*
+
+1. *Neovim*: https://img.shields.io/badge/Neovim-0.11+-green.svg
+2. *Lua*: https://img.shields.io/badge/Lua-blue.svg
+3. *License*: https://img.shields.io/badge/License-MIT-green.svg
+
+Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
+
+vim:tw=78:ts=8:noet:ft=help:norl:
