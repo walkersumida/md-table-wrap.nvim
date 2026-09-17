@@ -1,0 +1,37 @@
+name: Generate Documentation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    name: Generate vimdoc
+    steps:
+      - uses: actions/checkout@v4
+
+      # panvimdoc writes into doc/ but does not create it
+      - name: Create doc directory
+        run: mkdir -p doc
+
+      - name: Generate vimdoc
+        uses: kdheepak/panvimdoc@main
+        with:
+          vimdoc: md-table-wrap
+          version: "Neovim >= 0.11.0"
+          demojify: true
+          treesitter: true
+          toc: true
+          description: "Wrapped, window-fitting markdown tables rendered in place"
+
+      - name: Commit documentation
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(docs): auto-generate vimdoc"
+          file_pattern: doc/*.txt
