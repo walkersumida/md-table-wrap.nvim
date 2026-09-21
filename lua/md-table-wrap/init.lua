@@ -4,6 +4,7 @@
 -- window it is drawn in without changing what the other windows show.
 
 local config = require("md-table-wrap.config")
+local float = require("md-table-wrap.float")
 local parser = require("md-table-wrap.parser")
 local render = require("md-table-wrap.render")
 
@@ -597,6 +598,9 @@ function M.disable()
   end
 end
 
+--- Opens the table under the cursor in a floating window.
+M.open_float = float.open
+
 function M.setup(opts)
   config.setup(opts)
   parser.clear_cache()
@@ -608,6 +612,9 @@ function M.setup(opts)
     attached[bufnr] = nil
   end
   vim.api.nvim_create_user_command("MdTableWrap", M.toggle, { desc = "Toggle wrapped table rendering" })
+  vim.api.nvim_create_user_command("MdTableWrapFloat", M.open_float, {
+    desc = "Open the table under the cursor in a floating window",
+  })
 
   vim.api.nvim_create_autocmd("FileType", {
     group = GROUP,
