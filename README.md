@@ -38,6 +38,9 @@ aligned. The buffer text is never modified.
   shown as markdown source in place; insert mode brings back the source for editing
 - Columns are squeezed from the widest one until the table fits the window, and every
   window showing the buffer is laid out for its own width
+- `:MdTableWrapFloat` opens the table under the cursor in a floating window as plain
+  text, laid out for the width of the whole editor, where the cursor moves over the
+  characters as drawn
 
 ## Requirements
 
@@ -123,11 +126,21 @@ require("md-table-wrap").setup({
 | Command | Description |
 |---|---|
 | `:MdTableWrap` | Toggle the rendering for the current buffer |
+| `:MdTableWrapFloat` | Open the table under the cursor in a floating window; `q` or `<Esc>` closes it |
 
 ```lua
 require("md-table-wrap").toggle()  -- current buffer
 require("md-table-wrap").enable()  -- every attached buffer
 require("md-table-wrap").disable()
+require("md-table-wrap").open_float()  -- table under the cursor
+```
+
+No key is mapped by default. To open the float with a key:
+
+```lua
+vim.keymap.set("n", "<leader>tf", function()
+  require("md-table-wrap").open_float()
+end, { desc = "Open the markdown table in a float" })
 ```
 
 ## How it works

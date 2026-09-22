@@ -2,7 +2,7 @@ describe("md-table-wrap", function()
   local plugin
 
   local function fresh()
-    for _, name in ipairs({ "", ".config", ".parser", ".render", ".text" }) do
+    for _, name in ipairs({ "", ".config", ".float", ".parser", ".render", ".text" }) do
       package.loaded["md-table-wrap" .. name] = nil
     end
     return require("md-table-wrap")
@@ -38,6 +38,7 @@ describe("md-table-wrap", function()
 
   after_each(function()
     pcall(vim.api.nvim_del_user_command, "MdTableWrap")
+    pcall(vim.api.nvim_del_user_command, "MdTableWrapFloat")
   end)
 
   it("registers the toggle command", function()
@@ -513,5 +514,68 @@ describe("md-table-wrap", function()
     local bufnr = vim.api.nvim_get_current_buf()
     vim.wait(100)
     assert.are.equal(0, #marks(bufnr))
+  end)
+
+  describe("floating window", function()
+    local long_lines = {
+      "intro",
+      "| n | note |",
+      "|---|---|",
+      "| 1 | **bold** text |",
+      "| 2 | another |",
+      "outro",
+    }
+
+    it("shows the table under the cursor as buffer text, on the row of the cursor", function()
+      open(long_lines)
+      local source = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_cursor(0, { 5, 0 })
+      vim.cmd("MdTableWrapFloat")
+
+      local win = vim.api.nvim_get_current_win()
+      assert.are_not.equal(source, win)
+      assert.are.equal("editor", vim.api.nvim_win_get_config(win).relative)
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.are.equal("┌", vim.fn.strcharpart(lines[1], 0, 1))
+      assert.is_truthy(vim.api.nvim_get_current_line():find("│ 2 │", 1, true))
+      assert.is_truthy(table.concat(lines, "\n"):find("bold text", 1, true))
+      assert.is_false(vim.bo.modifiable)
+
+      vim.api.nvim_feedkeys("q", "x", false)
+      assert.is_false(vim.api.nvim_win_is_valid(win))
+      assert.are.equal(source, vim.api.nvim_get_current_win())
+    end)
+
+    it("highlights the styled text of a cell", function()
+      open(long_lines)
+      vim.api.nvim_win_set_cursor(0, { 4, 0 })
+      plugin.open_float()
+      local found = vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })
+      local styled = vim.tbl_filter(function(mark)
+        local hl = mark[4].hl_group
+        return hl and vim.inspect(hl):find("strong", 1, true)
+      end, found)
+      assert.are.equal(1, #styled)
+      vim.cmd("close")
+    end)
+
+    it("closes when another window is entered", function()
+      open(long_lines)
+      local source = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_cursor(0, { 4, 0 })
+      local win = plugin.open_float()
+      vim.api.nvim_set_current_win(source)
+      vim.wait(200, function()
+        return not vim.api.nvim_win_is_valid(win)
+      end, 10)
+      assert.is_false(vim.api.nvim_win_is_valid(win))
+    end)
+
+    it("opens nothing outside a table", function()
+      open(long_lines)
+      local source = vim.api.nvim_get_current_win()
+      assert.is_nil(plugin.open_float())
+      assert.are.equal(source, vim.api.nvim_get_current_win())
+    end)
   end)
 end)

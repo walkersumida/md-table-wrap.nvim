@@ -1,5 +1,5 @@
 *md-table-wrap.txt*  Wrapped, window-fitting markdown tables rendered in place
-                        For Neovim >= 0.11.0    Last change: 2026 September 17
+                        For Neovim >= 0.11.0    Last change: 2026 September 22
 
 ==============================================================================
 Table of Contents                            *md-table-wrap-table-of-contents*
@@ -56,6 +56,9 @@ FEATURES                           *md-table-wrap-md-table-wrap.nvim-features*
     shown as markdown source in place; insert mode brings back the source for editing
 - Columns are squeezed from the widest one until the table fits the window, and every
     window showing the buffer is laid out for its own width
+- `:MdTableWrapFloat` opens the table under the cursor in a floating window as plain
+    text, laid out for the width of the whole editor, where the cursor moves over the
+    characters as drawn
 
 
 REQUIREMENTS                   *md-table-wrap-md-table-wrap.nvim-requirements*
@@ -104,31 +107,31 @@ CONFIGURATION                 *md-table-wrap-md-table-wrap.nvim-configuration*
 >lua
     require("md-table-wrap").setup({
       enabled = true,
-    
+
       -- Filetypes the tables are rendered in.
       filetypes = { "markdown" },
-    
+
       -- The source of a table is hidden with conceal, so a window showing one of the
       -- filetypes with 'conceallevel' at 0 gets this level instead. The level applies to
       -- every conceal in the window, such as the markers and link destinations Neovim
       -- hides in markdown. Set to false to leave the option alone.
       conceallevel = 2,
-    
+
       -- A column is never squeezed below this width while the table is being fitted to
       -- the window.
       min_col_width = 8,
-    
+
       -- Milliseconds to wait after an event before redrawing.
       debounce = 50,
-    
+
       -- Milliseconds to keep re-measuring the window after a buffer opens. Other plugins
       -- place their signs after the first draw, which changes the width left for the
       -- table.
       settle_time = 1000,
-    
+
       -- Number of parsed cells kept in memory.
       cache_size = 2000,
-    
+
       -- Highlight groups applied to the drawn table. The inline keys are the treesitter
       -- node names of the markdown_inline parser.
       highlights = {
@@ -144,13 +147,29 @@ CONFIGURATION                 *md-table-wrap-md-table-wrap.nvim-configuration*
 
 COMMANDS AND API           *md-table-wrap-md-table-wrap.nvim-commands-and-api*
 
-  Command        Description
-  -------------- ---------------------------------------------
-  :MdTableWrap   Toggle the rendering for the current buffer
+  -----------------------------------------------------------------------
+  Command                             Description
+  ----------------------------------- -----------------------------------
+  :MdTableWrap                        Toggle the rendering for the
+                                      current buffer
+
+  :MdTableWrapFloat                   Open the table under the cursor in
+                                      a floating window; q or <Esc>
+                                      closes it
+  -----------------------------------------------------------------------
 >lua
     require("md-table-wrap").toggle()  -- current buffer
     require("md-table-wrap").enable()  -- every attached buffer
     require("md-table-wrap").disable()
+    require("md-table-wrap").open_float()  -- table under the cursor
+<
+
+No key is mapped by default. To open the float with a key:
+
+>lua
+    vim.keymap.set("n", "<leader>tf", function()
+      require("md-table-wrap").open_float()
+    end, { desc = "Open the markdown table in a float" })
 <
 
 
